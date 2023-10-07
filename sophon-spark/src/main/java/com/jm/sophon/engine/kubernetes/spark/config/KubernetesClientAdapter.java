@@ -20,6 +20,21 @@ public class KubernetesClientAdapter {
         }
     }
 
+    public KubernetesClientAdapter(String k8sMasterUrl, String k8sCarCertData, String k8sClientCrtData, String K8sClientKeyData) {
+        if(client == null){
+            io.fabric8.kubernetes.client.Config config = new ConfigBuilder()
+                    .withMasterUrl(k8sMasterUrl)
+                    .withCaCertData(k8sCarCertData)
+                    .withClientCertData(k8sClientCrtData)
+                    .withClientKeyData(K8sClientKeyData)
+                    .build();
+
+            this.client = new KubernetesClientBuilder()
+                    .withConfig(config)
+                    .build();
+        }
+    }
+
     public void init() {
         String url = "https://192.168.217.140:6443";
 
@@ -41,7 +56,7 @@ public class KubernetesClientAdapter {
 
     }
 
-    public void clean() {
+    public void closeKubernetesClient() {
         if (this.client != null) {
             this.client.close();
         }
