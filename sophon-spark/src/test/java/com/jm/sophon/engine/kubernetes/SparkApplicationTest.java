@@ -5,8 +5,10 @@ import com.jm.sophon.engine.kubernetes.spark.operator.RestartPolicy;
 import com.jm.sophon.engine.kubernetes.spark.operator.SparkApplication;
 import com.jm.sophon.engine.kubernetes.spark.operator.SparkApplicationSpec;
 import com.jm.sophon.engine.kubernetes.spark.operator.SparkPodSpec;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.WritableOperation;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,6 +22,36 @@ import java.util.Map;
 public class SparkApplicationTest {
 
     public static void main(String[] args) {
+
+        String nginx = "apiVersion: apps/v1\n" +
+                "kind: Deployment\n" +
+                "metadata:\n" +
+                "  name: demo-tomcat\n" +
+                "  namespace: spark-operator\n" +
+                "  labels:\n" +
+                "    app: demo\n" +
+                "spec:\n" +
+                "  replicas: 1\n" +
+                "  selector:\n" +
+                "    matchLabels:\n" +
+                "      app: demo\n" +
+                "  template:\n" +
+                "    metadata:\n" +
+                "      labels:\n" +
+                "        app: demo\n" +
+                "    spec:\n" +
+                "      containers:\n" +
+                "      - name: tomcat\n" +
+                "        image: demo-tomcat:121.0 \n" +
+                "        ports:\n" +
+                "        - containerPort: 80";
+
+        KubernetesClientAdapter kubernetesClientAdapter = new KubernetesClientAdapter();
+        KubernetesClient client = kubernetesClientAdapter.getClient();
+
+        WritableOperation<HasMetadata> operation = client.resource(nginx).dryRun();
+
+
 
     }
 

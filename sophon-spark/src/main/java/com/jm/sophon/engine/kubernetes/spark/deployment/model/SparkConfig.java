@@ -11,6 +11,8 @@ import java.util.Map;
  */
 public class SparkConfig {
 
+    private String yamlContent;
+
     private String sparkHome;
     private String master = "";
     private String mainClass = "";
@@ -417,5 +419,13 @@ public class SparkConfig {
 
     public void setQueue(String queue) {
         this.queue = queue;
+    }
+
+    public void setYamlContent(String yamlContent) {
+        this.yamlContent = yamlContent;
+    }
+
+    public String getYamlContent() {
+        return yamlContent;
     }
 }
