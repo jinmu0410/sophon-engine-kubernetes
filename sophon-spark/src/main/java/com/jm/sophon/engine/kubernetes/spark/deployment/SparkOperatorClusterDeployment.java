@@ -27,11 +27,6 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
     public SparkOperatorClusterDeployment(SparkSophonContext sparkSophonContext) {
         super(sparkSophonContext);
         this.sparkConfig = sparkSophonContext.getSparkConfig();
-    }
-
-    @Override
-    public void pre() {
-        LOG.info("spark operator cluster deployment pre method");
         kubernetesClientAdapter = new KubernetesClientAdapter(
                 sparkConfig.getK8sMasterUrl(),
                 sparkConfig.getK8sCarCertData(),
@@ -39,11 +34,16 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
                 sparkConfig.getK8sClientKeyData()
         );
 
+        this.sparkApplication = getSparkApplication();
+    }
+
+    @Override
+    public void pre() {
+        LOG.info("spark operator cluster deployment pre method");
+
         if (CollectionUtil.isEmpty(checkSparkOperatorIsExist())) {
             throw new RuntimeException("spark operator not exist");
         }
-
-        this.sparkApplication = getSparkApplication();
 
         SparkPodSpec driver = SparkPodSpec.Builder()
                 .cores(sparkConfig.getDriverCores())
@@ -101,7 +101,9 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
         } catch (Exception e) {
             throw new RuntimeException("spark on kubernetes cancel error, msg = " + e.getMessage());
         } finally {
-            this.kubernetesClientAdapter.closeKubernetesClient();
+            if(this.kubernetesClientAdapter != null){
+                this.kubernetesClientAdapter.closeKubernetesClient();
+            }
         }
     }
 
@@ -113,7 +115,7 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
         }
     }
 
-    public List<CustomResourceDefinition> checkSparkOperatorIsExist() {
+    private List<CustomResourceDefinition> checkSparkOperatorIsExist() {
         CustomResourceDefinitionList customResourceDefinitionList =
                 this.kubernetesClientAdapter.getClient().apiextensions().v1().customResourceDefinitions().list();
 
@@ -123,7 +125,7 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
                 .collect(Collectors.toList());
     }
 
-    public SparkApplication getSparkApplication() {
+    private SparkApplication getSparkApplication() {
         SparkApplication sparkApplication = new SparkApplication();
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName(sparkConfig.getAppName());
@@ -132,14 +134,4 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
         return sparkApplication;
     }
 
-    public Boolean checkCancelJobResult(List<StatusDetails> statusDetails) {
-        Boolean result = false;
-        if (CollectionUtil.isNotEmpty(statusDetails)) {
-            StatusDetails details = statusDetails.get(0);
-            if (CustomResource.getCRDName(SparkApplication.class).equalsIgnoreCase(details.getKind() + details.getGroup()) && sparkApplication.getMetadata().getName().equalsIgnoreCase(details.getName())) {
-                result = true;
-            }
-        }
-        return result;
-    }
 }

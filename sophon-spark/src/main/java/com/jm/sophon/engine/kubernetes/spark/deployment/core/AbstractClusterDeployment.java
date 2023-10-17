@@ -1,17 +1,21 @@
 package com.jm.sophon.engine.kubernetes.spark.deployment.core;
 
+import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.json.JSONUtil;
 import com.jm.sophon.engine.kubernetes.spark.config.KubernetesClientAdapter;
 import com.jm.sophon.engine.kubernetes.spark.deployment.model.SparkConfig;
 import com.jm.sophon.engine.kubernetes.spark.operator.ApplicationState;
 import com.jm.sophon.engine.kubernetes.spark.operator.SparkApplication;
 import com.jm.sophon.engine.kubernetes.spark.operator.SparkApplicationStatus;
+import io.fabric8.kubernetes.api.model.StatusDetails;
+import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.Watch;
 import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.WatcherException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -55,7 +59,7 @@ public abstract class AbstractClusterDeployment<T extends SophonContext> impleme
         }
     }
 
-    public void watch() {
+    private void watch() {
         FutureTask processStatusFuture = new FutureTask<>(this::watchStatus, null);
 
         Thread processStatusThread = new Thread(processStatusFuture, this.sparkApplication.getMetadata().getName() + "-watch-status");
@@ -63,7 +67,7 @@ public abstract class AbstractClusterDeployment<T extends SophonContext> impleme
         processStatusThread.start();
     }
 
-    public Watch getSparkApplicationWatch() {
+    private Watch getSparkApplicationWatch() {
         return this.kubernetesClientAdapter.getClient().resource(this.sparkApplication).inNamespace(this.sparkApplication.getMetadata().getNamespace())
                 .watch(new Watcher<SparkApplication>() {
                     @Override
@@ -82,7 +86,6 @@ public abstract class AbstractClusterDeployment<T extends SophonContext> impleme
 
                                     //todo 这里还可以判断是否需要删除已经完成的任务
                                     flag.getAndSet(true);
-                                    //主动抛出来异常停止当前任务
                                     throw new RuntimeException("sparkApplication watch kill");
                                 }
                             }
@@ -96,7 +99,7 @@ public abstract class AbstractClusterDeployment<T extends SophonContext> impleme
                 });
     }
 
-    public void watchStatus() {
+    private void watchStatus() {
         Watch watch = getSparkApplicationWatch();
         LOG.info("watch status start");
         while (true) {
@@ -108,7 +111,18 @@ public abstract class AbstractClusterDeployment<T extends SophonContext> impleme
         }
     }
 
-    public void handleStatus(Watcher.Action action, SparkApplication resource) {
+    protected Boolean checkCancelJobResult(List<StatusDetails> statusDetails) {
+        Boolean result = false;
+        if (CollectionUtil.isNotEmpty(statusDetails)) {
+            StatusDetails details = statusDetails.get(0);
+            if (CustomResource.getCRDName(SparkApplication.class).equalsIgnoreCase(details.getKind() + details.getGroup()) && sparkApplication.getMetadata().getName().equalsIgnoreCase(details.getName())) {
+                result = true;
+            }
+        }
+        return result;
+    }
+
+    private void handleStatus(Watcher.Action action, SparkApplication resource) {
         LOG.info("action = " + action);
         if (resource.getStatus() != null) {
             LOG.info("resource = " + JSONUtil.toJsonStr(resource.getStatus()));
