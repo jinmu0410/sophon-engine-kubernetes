@@ -5,15 +5,13 @@ import com.jm.sophon.engine.kubernetes.spark.config.KubernetesClientAdapter;
 import com.jm.sophon.engine.kubernetes.spark.deployment.core.AbstractClusterDeployment;
 import com.jm.sophon.engine.kubernetes.spark.deployment.core.SophonContext;
 import com.jm.sophon.engine.kubernetes.spark.deployment.model.SparkDeployMode;
-import com.jm.sophon.engine.kubernetes.spark.operator.RestartPolicy;
-import com.jm.sophon.engine.kubernetes.spark.operator.SparkApplication;
-import com.jm.sophon.engine.kubernetes.spark.operator.SparkApplicationSpec;
-import com.jm.sophon.engine.kubernetes.spark.operator.SparkPodSpec;
+import com.jm.sophon.engine.kubernetes.spark.operator.*;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.StatusDetails;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinitionList;
 import io.fabric8.kubernetes.client.CustomResource;
+
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,12 +24,7 @@ import java.util.stream.Collectors;
  */
 public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<SophonContext> {
 
-    public KubernetesClientAdapter kubernetesClientAdapter;
-
-    public SparkApplication sparkApplication;
-
-
-    public SparkOperatorClusterDeployment(SparkSophonContext sparkSophonContext){
+    public SparkOperatorClusterDeployment(SparkSophonContext sparkSophonContext) {
         super(sparkSophonContext);
     }
 
@@ -48,15 +41,17 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
             throw new RuntimeException("spark operator not exist");
         }
 
+        this.sparkApplication = getSparkApplication();
+
         SparkPodSpec driver = SparkPodSpec.Builder()
-                        .cores(sparkConfig.getDriverCores())
-                        .memory(sparkConfig.getDriverMemory())
-                        .serviceAccount(sparkConfig.getK8sServiceAccount())
-                        .build();
+                .cores(sparkConfig.getDriverCores())
+                .memory(sparkConfig.getDriverMemory())
+                .serviceAccount(sparkConfig.getK8sServiceAccount())
+                .build();
 
         SparkPodSpec executor = SparkPodSpec.Builder()
-                        .cores(sparkConfig.getExecutorCores())
-                        .instances(sparkConfig.getNumExecutors())
+                .cores(sparkConfig.getExecutorCores())
+                .instances(sparkConfig.getNumExecutors())
                         .memory(sparkConfig.getExecutorMemory())
                         .build();
 
@@ -81,16 +76,16 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
 
     @Override
     public void doSubmit() {
-        SparkApplication application = this.kubernetesClientAdapter.getClient().resource(sparkApplication).create();
+        this.kubernetesClientAdapter.getClient().resource(sparkApplication).create();
 
         //todo 获取提交结果
-
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    @Override
-    public void post() {
-        this.kubernetesClientAdapter.closeKubernetesClient();
-    }
 
     @Override
     public void cancel() {
@@ -105,6 +100,11 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
         } finally {
             this.kubernetesClientAdapter.closeKubernetesClient();
         }
+    }
+
+    @Override
+    public void post() {
+        this.kubernetesClientAdapter.closeKubernetesClient();
     }
 
     public List<CustomResourceDefinition> checkSparkOperatorIsExist() {

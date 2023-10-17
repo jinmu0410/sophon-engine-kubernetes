@@ -1,17 +1,23 @@
 package com.jm.sophon.engine.kubernetes;
 
+
+import cn.hutool.json.JSONUtil;
 import com.jm.sophon.engine.kubernetes.spark.config.KubernetesClientAdapter;
-import com.jm.sophon.engine.kubernetes.spark.operator.RestartPolicy;
-import com.jm.sophon.engine.kubernetes.spark.operator.SparkApplication;
-import com.jm.sophon.engine.kubernetes.spark.operator.SparkApplicationSpec;
-import com.jm.sophon.engine.kubernetes.spark.operator.SparkPodSpec;
-import io.fabric8.kubernetes.api.model.HasMetadata;
+import com.jm.sophon.engine.kubernetes.spark.deployment.core.AbstractNativeClusterDeployment;
+import com.jm.sophon.engine.kubernetes.spark.operator.*;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.kubernetes.api.model.StatusDetails;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.WritableOperation;
+import io.fabric8.kubernetes.client.Watch;
+import io.fabric8.kubernetes.client.Watcher;
+import io.fabric8.kubernetes.client.WatcherException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * TODO
@@ -21,53 +27,26 @@ import java.util.Map;
  */
 public class SparkApplicationTest {
 
+    protected static final Logger LOG = LoggerFactory.getLogger(SparkApplicationTest.class);
+
+
+    public volatile static Boolean flag = false;
+
     public static void main(String[] args) {
 
-        String nginx = "apiVersion: apps/v1\n" +
-                "kind: Deployment\n" +
-                "metadata:\n" +
-                "  name: demo-tomcat\n" +
-                "  namespace: spark-operator\n" +
-                "  labels:\n" +
-                "    app: demo\n" +
-                "spec:\n" +
-                "  replicas: 1\n" +
-                "  selector:\n" +
-                "    matchLabels:\n" +
-                "      app: demo\n" +
-                "  template:\n" +
-                "    metadata:\n" +
-                "      labels:\n" +
-                "        app: demo\n" +
-                "    spec:\n" +
-                "      containers:\n" +
-                "      - name: tomcat\n" +
-                "        image: demo-tomcat:121.0 \n" +
-                "        ports:\n" +
-                "        - containerPort: 80";
-
-        KubernetesClientAdapter kubernetesClientAdapter = new KubernetesClientAdapter();
-        KubernetesClient client = kubernetesClientAdapter.getClient();
-
-        WritableOperation<HasMetadata> operation = client.resource(nginx).dryRun();
-
-
-
+        submit();
+        //cancel();
     }
 
 
-    public static void sparkOperatorTest(){
-        SparkApplication sparkApplication = new SparkApplication();
-        ObjectMeta metadata = new ObjectMeta();
-        metadata.setName("test-spark-operator");
-        metadata.setNamespace("spark-operator");
-        sparkApplication.setMetadata(metadata);
+    public static void submit(){
+        SparkApplication sparkApplication = getSparkApplication();
 
         SparkPodSpec driver =
                 SparkPodSpec.Builder()
                         .cores(1)
                         .memory("1G")
-                        .serviceAccount("my-release-spark")
+                        .serviceAccount("my-release-test-spark")
                         .build();
 
         SparkPodSpec executor =
@@ -75,6 +54,7 @@ public class SparkApplicationTest {
                         .cores(1)
                         .instances(1)
                         .memory("1G")
+                        .serviceAccount("my-release-test-spark")
                         .build();
 
         Map<String, String> sparkConfMap = new HashMap<>();
@@ -99,6 +79,89 @@ public class SparkApplicationTest {
         KubernetesClientAdapter kubernetesClientAdapter = new KubernetesClientAdapter();
         KubernetesClient client = kubernetesClientAdapter.getClient();
 
-        SparkApplication application = client.resource(sparkApplication).create();
+        client.resource(sparkApplication).create();
+
+        AtomicBoolean flag = new AtomicBoolean(false);
+        Watch watch = testWatch(client,flag);
+
+        //这个必须，不然watch方法没有日志打印
+//        try {
+//            System.in.read();
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+
+        while (true){
+            if(flag.get()){
+                System.out.println("进入结束标识");
+                watch.close();
+                break;
+            }
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        //kubernetesClientAdapter.closeKubernetesClient();
+    }
+
+    public static SparkApplication getSparkApplication(){
+        SparkApplication sparkApplication = new SparkApplication();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName("test-spark-operator-123456");
+        metadata.setNamespace("spark-operator-test");
+        sparkApplication.setMetadata(metadata);
+
+        return sparkApplication;
+    }
+
+    public static void cancel(){
+        SparkApplication sparkApplication = getSparkApplication();
+
+        KubernetesClientAdapter kubernetesClientAdapter = new KubernetesClientAdapter();
+        KubernetesClient client = kubernetesClientAdapter.getClient();
+
+        List<StatusDetails> statusDetails = client.resource(sparkApplication).delete();
+
+        kubernetesClientAdapter.closeKubernetesClient();
+        LOG.info("spark 删除成功");
+
+    }
+
+    public static Watch testWatch(KubernetesClient client, AtomicBoolean flag){
+        return client.resource(getSparkApplication()).inNamespace("spark-operator-test").watch(new Watcher<SparkApplication>() {
+            @Override
+            public void eventReceived(Action action, SparkApplication resource) {
+                System.out.println("action = " + action);
+                System.out.println("SparkApplication status = " + JSONUtil.toJsonStr(resource.getStatus()));
+
+                LOG.info("action = " + action);
+                LOG.info("SparkApplication status = " + JSONUtil.toJsonStr(resource.getStatus()));
+
+
+                if (action.equals(Action.MODIFIED)) {
+                    SparkApplicationStatus status = resource.getStatus();
+                    if (status != null) {
+                        ApplicationState applicationState = status.getApplicationState();
+                        if (applicationState.getState().equalsIgnoreCase("COMPLETED")) {
+                            System.out.println("任务已完成");
+                            LOG.info("任务已经完成");
+                            //停止
+                            cancel();
+                            flag.getAndSet(true);
+                            throw new RuntimeException("sparkApplication completed");
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onClose(WatcherException cause) {
+                System.out.println("WatcherException = " + cause.getMessage());
+                LOG.info("WatcherException = " +cause.getMessage());
+            }
+        });
     }
 }
