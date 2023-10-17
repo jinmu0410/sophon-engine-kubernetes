@@ -40,7 +40,6 @@ public abstract class AbstractClusterDeployment<T extends SophonContext> impleme
 
     public abstract void post();
 
-
     @Override
     public void submit() {
         try {
@@ -56,44 +55,57 @@ public abstract class AbstractClusterDeployment<T extends SophonContext> impleme
         }
     }
 
-    protected void watch() {
-        // 异步监听sparkApplication状态
-        FutureTask processLogFuture = new FutureTask<>(this::watchStatus, null);
-        Thread processLogThread = new Thread(processLogFuture, this.sparkApplication.getMetadata().getName() + "-watch-status");
-        processLogThread.setDaemon(true);
-        processLogThread.start();
+    public void watch() {
+        FutureTask processStatusFuture = new FutureTask<>(this::watchStatus, null);
+
+        Thread processStatusThread = new Thread(processStatusFuture, this.sparkApplication.getMetadata().getName() + "-watch-status");
+        processStatusThread.setDaemon(true);
+        processStatusThread.start();
     }
 
-    public void watchStatus() {
-        Watch watch = getSparkApplicationStatusWatch();
-        while (true) {
-            if (flag.get()) {
-                LOG.info("sparkApplication watch completed");
-                watch.close();
-                break;
-            }
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
-    public Watch getSparkApplicationStatusWatch() {
+    public Watch getSparkApplicationWatch() {
         return this.kubernetesClientAdapter.getClient().resource(this.sparkApplication).inNamespace(this.sparkApplication.getMetadata().getNamespace())
                 .watch(new Watcher<SparkApplication>() {
                     @Override
                     public void eventReceived(Action action, SparkApplication resource) {
-                        //todo 暂时只做状态日志的打印，后期需要怎么利用状态，再处理
-                        handleStatus(action, resource);
+                        //handleStatus(action, resource);
+                        LOG.info("action = " + action);
+                        if (resource.getStatus() != null) {
+                            LOG.info("resource = " + JSONUtil.toJsonStr(resource.getStatus()));
+                        }
+
+                        if (action.equals(Action.MODIFIED) || action.equals(Action.DELETED)) {
+                            SparkApplicationStatus status = resource.getStatus();
+                            if (status != null) {
+                                ApplicationState applicationState = status.getApplicationState();
+                                if (applicationState.getState().equalsIgnoreCase("COMPLETED")) {
+
+                                    //todo 这里还可以判断是否需要删除已经完成的任务
+                                    flag.getAndSet(true);
+                                    //主动抛出来异常停止当前任务
+                                    throw new RuntimeException("sparkApplication watch kill");
+                                }
+                            }
+                        }
                     }
 
                     @Override
                     public void onClose(WatcherException cause) {
-                        LOG.info("sparkApplicationStatusWatch onclose message = " + cause.getMessage());
+                        LOG.info("sparkApplicationWatch onclose message = " + cause.getMessage());
                     }
                 });
+    }
+
+    public void watchStatus() {
+        Watch watch = getSparkApplicationWatch();
+        LOG.info("watch status start");
+        while (true) {
+            if (flag.get()) {
+                LOG.info("sparkApplication watchStatus completed");
+                watch.close();
+                break;
+            }
+        }
     }
 
     public void handleStatus(Watcher.Action action, SparkApplication resource) {
@@ -109,8 +121,8 @@ public abstract class AbstractClusterDeployment<T extends SophonContext> impleme
                 if (applicationState.getState().equalsIgnoreCase("COMPLETED")) {
 
                     //todo 这里还可以判断是否需要删除已经完成的任务
-
                     flag.getAndSet(true);
+                    //主动抛出来异常停止当前任务
                     throw new RuntimeException("sparkApplication completed");
                 }
             }

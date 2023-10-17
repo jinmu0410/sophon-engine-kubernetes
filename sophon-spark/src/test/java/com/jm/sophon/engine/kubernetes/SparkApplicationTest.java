@@ -1,16 +1,16 @@
 package com.jm.sophon.engine.kubernetes;
 
 
+import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.jm.sophon.engine.kubernetes.spark.config.KubernetesClientAdapter;
-import com.jm.sophon.engine.kubernetes.spark.deployment.core.AbstractNativeClusterDeployment;
 import com.jm.sophon.engine.kubernetes.spark.operator.*;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.StatusDetails;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.Watch;
-import io.fabric8.kubernetes.client.Watcher;
-import io.fabric8.kubernetes.client.WatcherException;
+import io.fabric8.kubernetes.client.*;
+import io.fabric8.kubernetes.client.dsl.WritableOperation;
+import io.fabric8.kubernetes.client.dsl.internal.HasMetadataOperationsImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,8 +34,9 @@ public class SparkApplicationTest {
 
     public static void main(String[] args) {
 
-        submit();
+        //submit();
         //cancel();
+        testDryRun();
     }
 
 
@@ -164,4 +165,53 @@ public class SparkApplicationTest {
             }
         });
     }
+
+
+    public static void testDryRun(){
+        String sparkTest = "apiVersion: \"sparkoperator.k8s.io/v1beta2\"\n" +
+                "kind: SparkApplication\n" +
+                "metadata:\n" +
+                "  name: spark-pi\n" +
+                "  namespace: spark-operator-test\n" +
+                "spec:\n" +
+                "  type: Scala\n" +
+                "  mode: cluster\n" +
+                "  image: \"registry.cn-hangzhou.aliyuncs.com/public-namespace/spark:v3.1.1\"\n" +
+                "  imagePullPolicy: Always\n" +
+                "  mainClass: org.apache.spark.examples.SparkPi\n" +
+                "  mainApplicationFile: \"local:///opt/spark/examples/jars/spark-examples_2.12-3.1.1.jar\"\n" +
+                "  sparkVersion: \"3.1.1\"\n" +
+                "  restartPolicy:\n" +
+                "    type: Never\n" +
+                "  driver:\n" +
+                "    cores: 1\n" +
+                "    coreLimit: \"1200m\"\n" +
+                "    memory: \"512m\"\n" +
+                "    labels:\n" +
+                "      version: 3.1.1\n" +
+                "    serviceAccount: my-release-test-spark\n" +
+                "  executor:\n" +
+                "    cores: 1\n" +
+                "    instances: 1\n" +
+                "    memory: \"512m\"\n" +
+                "    labels:\n" +
+                "      version: 3.1.1";
+
+        KubernetesClientAdapter kubernetesClientAdapter = new KubernetesClientAdapter();
+        KubernetesClient client = kubernetesClientAdapter.getClient();
+
+        WritableOperation<HasMetadata> operation = client.resource(sparkTest).dryRun();
+
+
+        JSONObject jsonObject = JSONUtil.parseObj(operation);
+        JSONObject item = jsonObject.getJSONObject("item");
+        System.out.println(item.get("kind"));
+//        HasMetadataOperationsImpl<SparkApplication,SparkApplicationList> writableOperation = (HasMetadataOperationsImpl) operation;
+//        System.out.println(JSONUtil.toJsonStr(writableOperation));
+//
+//        System.out.println(writableOperation.getItem().getKind().equalsIgnoreCase("SparkApplication"));
+
+
+    }
+
 }

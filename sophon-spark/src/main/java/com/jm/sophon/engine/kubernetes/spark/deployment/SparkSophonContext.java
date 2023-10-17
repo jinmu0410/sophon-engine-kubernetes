@@ -12,4 +12,12 @@ import com.jm.sophon.engine.kubernetes.spark.deployment.model.SparkConfig;
 public class SparkSophonContext implements SophonContext {
 
     private SparkConfig sparkConfig;
+
+    public void setSparkConfig(SparkConfig sparkConfig) {
+        this.sparkConfig = sparkConfig;
+    }
+
+    public SparkConfig getSparkConfig() {
+        return sparkConfig;
+    }
 }

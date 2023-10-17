@@ -26,10 +26,12 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
 
     public SparkOperatorClusterDeployment(SparkSophonContext sparkSophonContext) {
         super(sparkSophonContext);
+        this.sparkConfig = sparkSophonContext.getSparkConfig();
     }
 
     @Override
     public void pre() {
+        LOG.info("spark operator cluster deployment pre method");
         kubernetesClientAdapter = new KubernetesClientAdapter(
                 sparkConfig.getK8sMasterUrl(),
                 sparkConfig.getK8sCarCertData(),
@@ -77,6 +79,7 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
     @Override
     public void doSubmit() {
         this.kubernetesClientAdapter.getClient().resource(sparkApplication).create();
+        LOG.info("spark operator cluster submit kubernetes success");
 
         //todo 获取提交结果
         try {
@@ -104,7 +107,10 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
 
     @Override
     public void post() {
-        this.kubernetesClientAdapter.closeKubernetesClient();
+        LOG.info("spark operator cluster deployment post method");
+        if(this.kubernetesClientAdapter != null){
+            this.kubernetesClientAdapter.closeKubernetesClient();
+        }
     }
 
     public List<CustomResourceDefinition> checkSparkOperatorIsExist() {
@@ -130,7 +136,7 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
         Boolean result = false;
         if (CollectionUtil.isNotEmpty(statusDetails)) {
             StatusDetails details = statusDetails.get(0);
-            if (CustomResource.getCRDName(SparkApplication.class).equalsIgnoreCase(details.getKind()) && sparkApplication.getMetadata().getName().equalsIgnoreCase(details.getName())) {
+            if (CustomResource.getCRDName(SparkApplication.class).equalsIgnoreCase(details.getKind() + details.getGroup()) && sparkApplication.getMetadata().getName().equalsIgnoreCase(details.getName())) {
                 result = true;
             }
         }
