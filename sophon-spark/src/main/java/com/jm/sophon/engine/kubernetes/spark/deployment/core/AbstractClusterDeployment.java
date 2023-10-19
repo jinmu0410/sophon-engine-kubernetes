@@ -16,7 +16,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -43,6 +42,7 @@ public abstract class AbstractClusterDeployment<T extends SophonContext> impleme
     public abstract void doSubmit();
 
     public abstract void post();
+    public abstract void watch();
 
     @Override
     public void submit() {
@@ -59,15 +59,7 @@ public abstract class AbstractClusterDeployment<T extends SophonContext> impleme
         }
     }
 
-    private void watch() {
-        FutureTask processStatusFuture = new FutureTask<>(this::watchStatus, null);
-
-        Thread processStatusThread = new Thread(processStatusFuture, this.sparkApplication.getMetadata().getName() + "-watch-status");
-        processStatusThread.setDaemon(true);
-        processStatusThread.start();
-    }
-
-    private Watch getSparkApplicationWatch() {
+    protected Watch getSparkApplicationWatch() {
         return this.kubernetesClientAdapter.getClient().resource(this.sparkApplication).inNamespace(this.sparkApplication.getMetadata().getNamespace())
                 .watch(new Watcher<SparkApplication>() {
                     @Override
@@ -99,7 +91,7 @@ public abstract class AbstractClusterDeployment<T extends SophonContext> impleme
                 });
     }
 
-    private void watchStatus() {
+    protected void watchStatus() {
         Watch watch = getSparkApplicationWatch();
         LOG.info("watch status start");
         while (true) {

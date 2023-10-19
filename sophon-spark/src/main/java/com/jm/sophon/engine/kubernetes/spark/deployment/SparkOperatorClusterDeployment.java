@@ -14,6 +14,7 @@ import io.fabric8.kubernetes.client.CustomResource;
 
 
 import java.util.List;
+import java.util.concurrent.FutureTask;
 import java.util.stream.Collectors;
 
 /**
@@ -113,6 +114,15 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
         if(this.kubernetesClientAdapter != null){
             this.kubernetesClientAdapter.closeKubernetesClient();
         }
+    }
+
+    @Override
+    public void watch() {
+        FutureTask processStatusFuture = new FutureTask<>(this::watchStatus, null);
+
+        Thread processStatusThread = new Thread(processStatusFuture, this.sparkApplication.getMetadata().getName() + "-watch-status");
+        processStatusThread.setDaemon(true);
+        processStatusThread.start();
     }
 
     private List<CustomResourceDefinition> checkSparkOperatorIsExist() {

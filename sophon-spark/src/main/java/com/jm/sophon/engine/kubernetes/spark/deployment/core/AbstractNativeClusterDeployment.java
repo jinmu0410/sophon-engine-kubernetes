@@ -1,5 +1,7 @@
 package com.jm.sophon.engine.kubernetes.spark.deployment.core;
 
+import com.jm.sophon.engine.kubernetes.spark.deployment.model.SparkConfig;
+import com.jm.sophon.engine.kubernetes.spark.deployment.model.SparkShellModel;
 import com.jm.sophon.engine.kubernetes.spark.utils.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +36,10 @@ public abstract class AbstractNativeClusterDeployment extends AbstractClusterDep
     private Integer processId;
     private ProcessBuilder processBuilder;
 
+    protected SparkConfig sparkConfig;
+
+    protected SparkShellModel sparkShellModel;
+
     public AbstractNativeClusterDeployment(SophonContext sophonContext) {
         super(sophonContext);
     }
@@ -58,6 +64,16 @@ public abstract class AbstractNativeClusterDeployment extends AbstractClusterDep
 
         // 等待进程执行结束
         waitForProcess();
+    }
+
+    @Override
+    public void cancel() {
+        //todo 1.中止本地进程
+        if(!softHardKill(processId)){
+            throw new RuntimeException("spark native shell cancel error");
+        }
+
+        //todo 2.中止k8s上pod
     }
 
     protected ProcessBuilder buildProcessBuilder() {

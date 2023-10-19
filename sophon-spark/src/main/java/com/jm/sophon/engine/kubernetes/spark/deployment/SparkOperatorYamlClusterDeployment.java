@@ -12,6 +12,7 @@ import io.fabric8.kubernetes.api.model.StatusDetails;
 import io.fabric8.kubernetes.client.dsl.WritableOperation;
 
 import java.util.List;
+import java.util.concurrent.FutureTask;
 
 
 /**
@@ -66,6 +67,15 @@ public class SparkOperatorYamlClusterDeployment extends AbstractClusterDeploymen
     @Override
     public void post() {
         LOG.info("spark operator yaml cluster deployment post method");
+    }
+
+    @Override
+    public void watch() {
+        FutureTask processStatusFuture = new FutureTask<>(this::watchStatus, null);
+
+        Thread processStatusThread = new Thread(processStatusFuture, this.sparkApplication.getMetadata().getName() + "-watch-status");
+        processStatusThread.setDaemon(true);
+        processStatusThread.start();
     }
 
     @Override
