@@ -20,4 +20,9 @@ public class SparkSophonContext implements SophonContext {
     public SparkConfig getSparkConfig() {
         return sparkConfig;
     }
+
+    @Override
+    public Boolean check() {
+        return Boolean.TRUE;
+    }
 }

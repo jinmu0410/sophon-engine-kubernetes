@@ -1,6 +1,7 @@
 package com.jm.sophon.engine.kubernetes.spark.deployment;
 
 import com.jm.sophon.engine.kubernetes.spark.deployment.core.AbstractNativeClusterDeployment;
+import com.jm.sophon.engine.kubernetes.spark.deployment.model.SparkShellModel;
 import com.jm.sophon.engine.kubernetes.spark.utils.SystemUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -20,8 +21,13 @@ public class SparkNativeClusterDeployment extends AbstractNativeClusterDeploymen
         super(sparkSophonContext);
         this.sparkConfig = sparkSophonContext.getSparkConfig();
 
+
+
         //todo 校验sparkConf,并转成SparkShellModel
+
+        this.sparkShellModel = buildSparkShellModel();
     }
+
 
     @Override
     protected List<String> buildCommand() {
@@ -55,10 +61,50 @@ public class SparkNativeClusterDeployment extends AbstractNativeClusterDeploymen
         return true;
     }
 
+    private SparkShellModel buildSparkShellModel() {
+        SparkShellModel.SparkDriverModel sparkDriverModel = SparkShellModel.SparkDriverModel.builder()
+                .driverCores(this.sparkConfig.getDriverCores())
+                .driverMemory(this.sparkConfig.getDriverMemory())
+                .driverClassPath(this.sparkConfig.getDriverClassPath())
+                .driverJavaOptions(this.sparkConfig.getDriverJavaOptions())
+                .driverLibraryPath(this.sparkConfig.getDriverLibraryPath())
+                .build();
+
+        SparkShellModel.SparkExecutorModel sparkExecutorModel = SparkShellModel.SparkExecutorModel.builder()
+                .executorCores(this.sparkConfig.getExecutorCores())
+                .executorMemory(this.sparkConfig.getExecutorMemory())
+                .numExecutors(this.sparkConfig.getNumExecutors())
+                .totalExecutorCores(this.sparkConfig.getTotalExecutorCores())
+                .build();
+
+        SparkShellModel.SparkKubernetesModel sparkKubernetesModel = SparkShellModel.SparkKubernetesModel.builder()
+                .k8sNamespace(this.sparkConfig.getK8sNamespace())
+                .k8sImage(this.sparkConfig.getK8sImage())
+                .k8sImagePullPolicy(this.sparkConfig.getK8sImagePullPolicy())
+                .k8sServiceAccount(this.sparkConfig.getK8sServiceAccount())
+                .build();
+
+        return SparkShellModel.builder()
+                .sparkHome(this.sparkConfig.getSparkHome())
+                .master(this.sparkConfig.getK8sMasterUrl())
+                .name(this.sparkConfig.getAppName())
+                .deployMode(this.sparkConfig.getDeployMode())
+                .files(this.sparkConfig.getFiles())
+                .archives(this.sparkConfig.getArchives())
+                .jars(this.sparkConfig.getJars())
+                .sparkDriverModel(sparkDriverModel)
+                .sparkExecutorModel(sparkExecutorModel)
+                .sparkKubernetesModel(sparkKubernetesModel)
+                .mainClass(this.sparkConfig.getMainClass())
+                .mainJarPath(this.sparkConfig.getMainJar())
+                .arguments(this.sparkConfig.getArguments())
+                .build();
+    }
+
 
     @Override
     public void post() {
-
+        //noting
     }
 
     @Override
