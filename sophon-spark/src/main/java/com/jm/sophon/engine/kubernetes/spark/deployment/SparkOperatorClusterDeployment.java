@@ -47,14 +47,14 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
         }
 
         SparkPodSpec driver = SparkPodSpec.Builder()
-                .cores(sparkConfig.getDriverCores())
+                .cores(Integer.valueOf(sparkConfig.getDriverCores()))
                 .memory(sparkConfig.getDriverMemory())
                 .serviceAccount(sparkConfig.getK8sServiceAccount())
                 .build();
 
         SparkPodSpec executor = SparkPodSpec.Builder()
-                .cores(sparkConfig.getExecutorCores())
-                .instances(sparkConfig.getNumExecutors())
+                .cores(Integer.valueOf(sparkConfig.getExecutorCores()))
+                .instances(Integer.valueOf(sparkConfig.getNumExecutors()))
                         .memory(sparkConfig.getExecutorMemory())
                         .build();
 
@@ -64,8 +64,8 @@ public class SparkOperatorClusterDeployment extends AbstractClusterDeployment<So
                         .image(sparkConfig.getK8sImage())
                         .imagePullPolicy(sparkConfig.getK8sImagePullPolicy())
                         .mainClass(sparkConfig.getMainClass())
-                        .mainApplicationFile(sparkConfig.getAppResource())
-                        .arguments(sparkConfig.getArgs())
+                        .mainApplicationFile(sparkConfig.getMainJar())
+                        .arguments(sparkConfig.getArguments())
                         .sparkVersion(sparkConfig.getK8sSparkVersion())
                         .restartPolicy(new RestartPolicy(sparkConfig.getK8sRestartPolicy()))
                         .driver(driver)

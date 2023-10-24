@@ -22,7 +22,6 @@ public class SparkNativeClusterDeployment extends AbstractNativeClusterDeploymen
         this.sparkConfig = sparkSophonContext.getSparkConfig();
 
 
-
         //todo 校验sparkConf,并转成SparkShellModel
 
         this.sparkShellModel = buildSparkShellModel();
@@ -48,11 +47,6 @@ public class SparkNativeClusterDeployment extends AbstractNativeClusterDeploymen
         }
 
         //todo 2.检查RBAC
-
-
-
-
-
 
     }
 
