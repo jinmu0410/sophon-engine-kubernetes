@@ -1,5 +1,6 @@
 package com.jm.sophon.engine.kubernetes.spark.deployment;
 
+import com.jm.sophon.engine.kubernetes.spark.config.KubernetesClientAdapter;
 import com.jm.sophon.engine.kubernetes.spark.deployment.core.AbstractNativeClusterDeployment;
 import com.jm.sophon.engine.kubernetes.spark.deployment.model.SparkShellModel;
 import com.jm.sophon.engine.kubernetes.spark.utils.SystemUtils;
@@ -51,8 +52,12 @@ public class SparkNativeClusterDeployment extends AbstractNativeClusterDeploymen
     }
 
     private Boolean checkKubeConfigFileIsExits() {
-
-        return true;
+        this.kubernetesClientAdapter = new KubernetesClientAdapter();
+        kubernetesClientAdapter.init();
+        if(this.kubernetesClientAdapter.getClient() != null){
+            return true;
+        }
+        return false;
     }
 
     private SparkShellModel buildSparkShellModel() {

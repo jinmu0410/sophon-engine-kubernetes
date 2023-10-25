@@ -1,8 +1,10 @@
 package com.jm.sophon.engine.kubernetes.spark.deployment.core;
 
+import com.jm.sophon.engine.kubernetes.spark.config.KubernetesClientAdapter;
 import com.jm.sophon.engine.kubernetes.spark.deployment.model.SparkConfig;
 import com.jm.sophon.engine.kubernetes.spark.deployment.model.SparkShellModel;
 import com.jm.sophon.engine.kubernetes.spark.utils.SystemUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +42,9 @@ public abstract class AbstractNativeClusterDeployment extends AbstractClusterDep
 
     protected SparkShellModel sparkShellModel;
 
+    private String podName;
+    private static String POD_NAME = "pod name: ";
+
     public AbstractNativeClusterDeployment(SophonContext sophonContext) {
         super(sophonContext);
     }
@@ -74,6 +79,12 @@ public abstract class AbstractNativeClusterDeployment extends AbstractClusterDep
         }
 
         //todo 2.中止k8s上pod
+        if(this.kubernetesClientAdapter == null){
+            this.kubernetesClientAdapter = new KubernetesClientAdapter();
+            this.kubernetesClientAdapter.init();
+        }
+
+        this.kubernetesClientAdapter.getClient().pods().inNamespace(sparkConfig.getK8sNamespace()).withName(podName).delete();
     }
 
     protected ProcessBuilder buildProcessBuilder() {
@@ -91,6 +102,9 @@ public abstract class AbstractNativeClusterDeployment extends AbstractClusterDep
             String line;
             while ((line = inReader.readLine()) != null) {
                 LOG.info(line);
+                if(line.contains(POD_NAME) && StringUtils.isNotBlank(podName)){
+                    podName = line.split(POD_NAME)[1];
+                }
                 if (processLogThread.isInterrupted()) {
                     throw new InterruptedException();
                 }
