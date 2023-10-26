@@ -35,7 +35,9 @@ public class SparkShellModel {
 
 
     //static
-    public static String joint = " \n";
+    public static String joint = " \\\n";
+    public static String SPARK_SUBMIT = "/bin/spark-submit";
+    private static final String SPARK_HOME = "SPARK_HOME";
     public static String SPARK_MASTER = "--master ";
     public static String SPARK_DEPLOY_MODE = "--deploy-mode ";
     public static String SPARK_NAME = "--name ";
@@ -60,14 +62,17 @@ public class SparkShellModel {
     public static String SPARK_K8S_IMAGE = "spark.kubernetes.container.image";
     public static String SPARK_K8S_IMAGE_PULLPOLICY = "spark.kubernetes.container.image.pullPolicy";
 
-
-
-
     public static String SPARK_EQUALS = "=";
 
 
     //构建shell命令
     public String buildShell(){
+        if(StringUtils.isBlank(sparkHome)){
+            sparkHome = System.getenv(SPARK_HOME) + SPARK_SUBMIT;
+        }
+        if(!sparkHome.contains(SPARK_SUBMIT)){
+            sparkHome = sparkHome + SPARK_SUBMIT;
+        }
         StringBuilder builder = new StringBuilder(sparkHome + joint);
 
         //必须的

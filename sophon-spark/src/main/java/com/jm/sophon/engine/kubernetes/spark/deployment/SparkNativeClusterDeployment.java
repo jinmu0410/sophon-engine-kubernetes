@@ -16,16 +16,10 @@ import java.util.List;
  */
 public class SparkNativeClusterDeployment extends AbstractNativeClusterDeployment {
 
-    private static final String SPARK_HOME = "SPARK_HOME";
-
     public SparkNativeClusterDeployment(SparkSophonContext sparkSophonContext) {
         super(sparkSophonContext);
         this.sparkConfig = sparkSophonContext.getSparkConfig();
 
-
-        //todo 校验sparkConf,并转成SparkShellModel
-
-        this.sparkShellModel = buildSparkShellModel();
     }
 
 
@@ -42,12 +36,15 @@ public class SparkNativeClusterDeployment extends AbstractNativeClusterDeploymen
 
     @Override
     public void pre() {
-        //todo 1.如果spark启动的服务器不在k8s集群上，需要把k8s集群~/.kube/config文件复制一份到当前主机同样目录下
+        //todo 1.校验sparkConf,并转成SparkShellModel
+        this.sparkShellModel = buildSparkShellModel();
+
+        //todo 2.如果spark启动的服务器不在k8s集群上，需要把k8s集群~/.kube/config文件复制一份到当前主机同样目录下
         if(!checkKubeConfigFileIsExits()){
             LOG.error("kubernetes config not exits");
         }
 
-        //todo 2.检查RBAC
+        //todo 3.检查RBAC
 
     }
 

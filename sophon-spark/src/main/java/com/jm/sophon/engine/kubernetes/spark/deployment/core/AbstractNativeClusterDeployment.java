@@ -25,8 +25,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public abstract class AbstractNativeClusterDeployment extends AbstractClusterDeployment<SophonContext> {
     protected static final Logger LOG = LoggerFactory.getLogger(AbstractNativeClusterDeployment.class);
-    private static final String JM_RUN_SUCCESS_CODE = "jm_run_success";
-    private static final String JM_RUN_ERROR_CODE = "jm_run_error";
     protected Thread processLogThread;
     protected FutureTask processLogFuture;
     protected long timeout = 3600L;
@@ -37,11 +35,8 @@ public abstract class AbstractNativeClusterDeployment extends AbstractClusterDep
     private Process process;
     private Integer processId;
     private ProcessBuilder processBuilder;
-
     protected SparkConfig sparkConfig;
-
     protected SparkShellModel sparkShellModel;
-
     private String podName;
     private static String POD_NAME = "pod name: ";
 
